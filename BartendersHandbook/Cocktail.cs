@@ -6,9 +6,9 @@ using Npgsql;
 public class Cocktail
 {
     public int Id { get; set; }
-    public string Name { get; set; }
+    public string name { get; set; }
     public List<string> Ingredients { get; set; }
-    public string FlavorProfile { get; set; }
+    public string flavorprofile { get; set; }
 
     public static List<Cocktail> GetAllCocktails()
     {
@@ -33,9 +33,9 @@ public class Cocktail
             {
                 Cocktail cocktail = new Cocktail();
                 cocktail.Id = dr.GetInt32(0);
-                cocktail.Name = dr.GetString(1);
+                cocktail.name = dr.GetString(1);
                 cocktail.Ingredients = new List<string>((string[])dr.GetValue(2));
-                cocktail.FlavorProfile = dr.GetString(3);
+                cocktail.flavorprofile = dr.GetString(3);
                 cocktails.Add(cocktail);
             }
 
@@ -59,14 +59,14 @@ public class Cocktail
             conn.Open();
 
             // Define an INSERT statement to add the new cocktail record
-            string sql = "INSERT INTO ”cocktails” (name, ingredients, flavor_profile) " +
-                "VALUES (@name, @ingredients, @flavor_profile)";
+            string sql = "INSERT INTO ”cocktails” (name, ingredients, flavorprofile) " +
+                "VALUES (@name, @ingredients, @flavorprofile)";
 
             // Execute the INSERT statement, passing in the cocktail object's properties as parameters
             NpgsqlCommand command = new NpgsqlCommand(sql, conn);
-            command.Parameters.AddWithValue("@name", cocktail.Name);
+            command.Parameters.AddWithValue("@name", cocktail.name);
             command.Parameters.AddWithValue("@ingredients", cocktail.Ingredients.ToArray());
-            command.Parameters.AddWithValue("@flavor_profile", cocktail.FlavorProfile);
+            command.Parameters.AddWithValue("@flavorprofile", cocktail.flavorprofile);
             command.ExecuteNonQuery();
 
             conn.Close();
@@ -88,14 +88,14 @@ public class Cocktail
 
             // Define an UPDATE statement to modify the existing cocktail record
             string sql = "UPDATE ”cocktails” SET name = @name, ingredients = @ingredients, " +
-                "flavor_profile = @flavor_profile WHERE id = @id";
+                "flavorprofile = @flavorprofile WHERE id = @id";
 
             // Execute the UPDATE statement, passing in the cocktail object's properties as parameters
             NpgsqlCommand command = new NpgsqlCommand(sql, conn);
             command.Parameters.AddWithValue("@id", cocktail.Id);
-            command.Parameters.AddWithValue("@name", cocktail.Name);
+            command.Parameters.AddWithValue("@name", cocktail.name);
             command.Parameters.AddWithValue("@ingredients", cocktail.Ingredients.ToArray());
-            command.Parameters.AddWithValue("@flavor_profile", cocktail.FlavorProfile);
+            command.Parameters.AddWithValue("@flavorprofile", cocktail.flavorprofile);
             command.ExecuteNonQuery();
 
             conn.Close();
