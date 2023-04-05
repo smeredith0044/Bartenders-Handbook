@@ -7,9 +7,10 @@ class Program
 {
     static void Main(string[] args)
     {
+        string connString = "Server=ec2-34-197-91-131.compute-1.amazonaws.com;Port=5432;Database=ddab6aknfp5lq5;User Id=ltkkuxigptlbec;Password=f7d1b5f66e29dd77cb68cfb31740424d36a9127edd5c5fdfe49ea14e12ad23b1;SSL Mode=Require;Trust Server Certificate=true;";
+
         // Connect to a PostgreSQL database
-        NpgsqlConnection conn = new NpgsqlConnection("Server=127.0.0.1;User Id=sydney; " +
-            "Password=Elliesue2*;Database=bartenders_handbook;");
+        NpgsqlConnection conn = new NpgsqlConnection(connString);
         conn.Open();
 
         // Set the console text color to yellow
@@ -43,7 +44,7 @@ class Program
                     string searchTerm = Console.ReadLine().ToLower();
 
                     // Define a parameterized query with a WHERE clause to filter results based on the search term
-                    NpgsqlCommand searchCommand = new NpgsqlCommand("SELECT id, name, ingredients, flavorprofile FROM ”cocktails” WHERE LOWER(name) LIKE '%' || @searchTerm || '%' OR @searchTerm = ANY(ingredients)", conn);
+                    NpgsqlCommand searchCommand = new NpgsqlCommand("SELECT id, name, ingredients, flavorprofile FROM cocktails WHERE LOWER(name) LIKE '%' || @searchTerm || '%' OR @searchTerm = ANY(ingredients)", conn);
                     searchCommand.Parameters.AddWithValue("@searchTerm", searchTerm);
 
                     // Execute the query and obtain a result set
@@ -61,13 +62,15 @@ class Program
                         // Output the search results
                         while (dr.Read())
                         {
-                            int id = BitConverter.ToInt32(((Guid)dr["id"]).ToByteArray(), 0);
+                            int id = int.Parse(dr["id"].ToString());
                             string name = dr["name"].ToString();
                             string[] ingredientsArr = (string[])dr["ingredients"];
                             string ingredients = string.Join(", ", ingredientsArr);
                             string flavorprofile = dr["flavorprofile"].ToString();
                             Console.WriteLine("{0}\t{1}\t{2}\t{3}", id, name, ingredients, flavorprofile);
                         }
+
+
 
                         Console.ResetColor();
                     }
@@ -88,108 +91,92 @@ class Program
                     string newName = Console.ReadLine();
                     Console.Write("Enter a comma-separated list of ingredients: ");
                     string newIngredientsStr = Console.ReadLine();
-                    string[] newIngredients = newIngredientsStr.Split(',');
-                    Console.Write("Enter the flavor profile: ");
+                    string[] newIngredientsArr = newIngredientsStr.Split(',');
+
+                    // Prompt the user for the flavor profile of the new cocktail
+                    Console.Write("Enter the flavor profile of the new cocktail: ");
                     string newFlavorProfile = Console.ReadLine();
 
-                    try
+                    // Define an INSERT statement with parameter placeholders for the new cocktail
+                    NpgsqlCommand insertCommand = new NpgsqlCommand("INSERT INTO cocktails (name, ingredients, flavorprofile) VALUES (@name, @ingredients, @flavorprofile)", conn);
+                    insertCommand.Parameters.AddWithValue("@name", newName);
+                    insertCommand.Parameters.AddWithValue("@ingredients", newIngredientsArr);
+                    insertCommand.Parameters.AddWithValue("@flavorprofile", newFlavorProfile);
+
+                    // Execute the INSERT statement and obtain the number of rows affected
+                    int rowsAffected = insertCommand.ExecuteNonQuery();
+
+                    // Check if the operation was successful
+                    if (rowsAffected == 1)
                     {
-                        // Build a parameterized INSERT statement to add the new cocktail to the database
-                        NpgsqlCommand insertCommand = new NpgsqlCommand("INSERT INTO ”cocktails” (id, name, ingredients, flavorprofile) VALUES (@id, @name, @ingredients, @flavorprofile)", conn);
-                        insertCommand.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Uuid, Guid.NewGuid());
-                        insertCommand.Parameters.AddWithValue("@name", newName);
-                        insertCommand.Parameters.AddWithValue("@ingredients", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Varchar, newIngredients);
-                        insertCommand.Parameters.AddWithValue("@flavorprofile", newFlavorProfile);
-
-                        // Execute the INSERT statement and display the number of rows affected
-                        int rowsAffected = insertCommand.ExecuteNonQuery();
-
-                        // Display a message indicating the success or failure of the operation
-                        if (rowsAffected > 0)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine("\n{0} cocktail added successfully!", newName);
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("\nFailed to add {0} cocktail.", newName);
-                        }
+                        Console.WriteLine("\nNew cocktail '{0}' added successfully!", newName);
                     }
-                    catch (Npgsql.PostgresException ex)
-                    {
-                        // Handle the case where the cocktail already exists in the database
-                        if (ex.SqlState == "23505")
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("\n{0} cocktail already exists in the database.", newName);
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("\nFailed to add {0} cocktail.", newName);
-                            Console.WriteLine("Error message: {0}", ex.MessageText);
-                        }
-                    }
-                    finally
-                    {
-                        Console.ResetColor();
-                    }
-                    break;
-
-
-                case 3:
-                    // Prompt the user for the name of the cocktail to delete
-                    Console.Write("\nEnter the name of the cocktail to delete: ");
-                    string deleteName = Console.ReadLine();
-
-                    // Define a parameterized query to delete a row from the "cocktails" table by name
-                    NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM ”cocktails” WHERE name = @name", conn);
-                    deleteCommand.Parameters.AddWithValue("@name", deleteName);
-
-                    try
-                    {
-                        // Execute the query and obtain the number of rows affected
-                        int rowsAffected = deleteCommand.ExecuteNonQuery();
-
-                        // Display a message indicating the success or failure of the operation
-                        if (rowsAffected > 0)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine("\nCocktail '{0}' deleted successfully!", deleteName);
-                            Console.ResetColor();
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("\nFailed to delete cocktail '{0}'. Cocktail does not exist.", deleteName);
-                            Console.ResetColor();
-                        }
-                    }
-                    catch (Npgsql.PostgresException ex)
+                    else
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("\nFailed to delete cocktail '{0}'.", deleteName);
-                        Console.WriteLine("Error message: {0}", ex.MessageText);
+                        Console.WriteLine("\nFailed to add new cocktail '{0}'.", newName);
                         Console.ResetColor();
                     }
+
                     break;
 
+                case 3:
+                    // Prompt the user for the ID of the cocktail to delete
+                    Console.Write("\nEnter the ID of the cocktail to delete: ");
+                    string deleteIdStr = Console.ReadLine();
 
+                    if (!int.TryParse(deleteIdStr, out int deleteId))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("\nInvalid ID. Please enter a number.");
+                        Console.ResetColor();
+                        break;
+                    }
 
+                    // Define a DELETE statement with a WHERE clause to delete the specified cocktail
+                    NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM cocktails WHERE id = @id", conn);
+                    deleteCommand.Parameters.AddWithValue("@id", deleteId);
 
+                    // Execute the DELETE statement and obtain the number of rows affected
+                    rowsAffected = deleteCommand.ExecuteNonQuery();
+
+                    // Check if the operation was successful
+                    if (rowsAffected == 1)
+                    {
+                        Console.WriteLine("\nCocktail with ID {0} deleted successfully!", deleteId);
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("\nFailed to delete cocktail with ID {0}.", deleteId);
+                        Console.ResetColor();
+                    }
+
+                    break;
 
                 case 0:
-                    // Exit the program
-                    Console.WriteLine("\nThank you for using the Bartender's Handbook!");
+                    Console.WriteLine("\nGoodbye!");
                     break;
 
                 default:
-                    Console.WriteLine("Invalid choice. Please enter a valid option.");
+                    Console.WriteLine("\nInvalid choice. Please enter a number between 0 and 3.");
                     break;
             }
+            try
+            {
+                // your code here
+            }
+            catch (Exception e)
+            {
+                string fileName = "error.txt";
+                string destPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug", fileName);
+                Console.WriteLine("Oops there were some errors, please see: " + destPath);
+                File.WriteAllText(destPath, e.ToString());
+            }
+
         }
 
+        // Close the database connection
         conn.Close();
     }
 }

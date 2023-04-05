@@ -17,12 +17,13 @@ public class Cocktail
         try
         {
             // Connect to the PostgreSQL database
-            NpgsqlConnection conn = new NpgsqlConnection("Server=localhost;User Id=sydney;" +
-            "Password=Elliesue2*;Database=bartenders_handbook;");
+            string connString = "Server=ec2-34-197-91-131.compute-1.amazonaws.com;Port=5432;Database=ddab6aknfp5lq5;User Id=ltkkuxigptlbec;Password=f7d1b5f66e29dd77cb68cfb31740424d36a9127edd5c5fdfe49ea14e12ad23b1;SSL Mode=Require;Trust Server Certificate=true;";
+
+            NpgsqlConnection conn = new NpgsqlConnection(connString);
             conn.Open();
 
             // Define a SELECT statement to retrieve all cocktail records
-            string sql = "SELECT * FROM ”cocktails” ORDER BY name";
+            string sql = "SELECT * FROM cocktails ORDER BY name";
 
             // Execute the SELECT statement and obtain a result set
             NpgsqlCommand command = new NpgsqlCommand(sql, conn);
@@ -59,7 +60,7 @@ public class Cocktail
             conn.Open();
 
             // Define an INSERT statement to add the new cocktail record
-            string sql = "INSERT INTO ”cocktails” (name, ingredients, flavorprofile) " +
+            string sql = "INSERT INTO cocktails (name, ingredients, flavorprofile) " +
                 "VALUES (@name, @ingredients, @flavorprofile)";
 
             // Execute the INSERT statement, passing in the cocktail object's properties as parameters
@@ -81,13 +82,14 @@ public class Cocktail
     {
         try
         {
-            // Connect to the PostgreSQL database
-            NpgsqlConnection conn = new NpgsqlConnection("Server=localhost;User Id=sydney;" +
-            "Password=Elliesue2*;Database=bartenders_handbook;");
+            string connString = "Server=ec2-34-197-91-131.compute-1.amazonaws.com;Port=5432;Database=ddab6aknfp5lq5;User Id=ltkkuxigptlbec;Password=f7d1b5f66e29dd77cb68cfb31740424d36a9127edd5c5fdfe49ea14e12ad23b1;SSL Mode=Require;Trust Server Certificate=true;";
+
+            // Connect to a PostgreSQL database
+            NpgsqlConnection conn = new NpgsqlConnection(connString);
             conn.Open();
 
             // Define an UPDATE statement to modify the existing cocktail record
-            string sql = "UPDATE ”cocktails” SET name = @name, ingredients = @ingredients, " +
+            string sql = "UPDATE cocktails SET name = @name, ingredients = @ingredients, " +
                 "flavorprofile = @flavorprofile WHERE id = @id";
 
             // Execute the UPDATE statement, passing in the cocktail object's properties as parameters
