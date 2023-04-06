@@ -3,28 +3,103 @@ using System.Collections.Generic;
 using System.Data;
 using Npgsql;
 
+// Single responsibility principle is followed by separating out the code for database operations
+// into a separate class
+class DbConnector
+{
+    private NpgsqlConnection _conn;
+
+    // Constructor initializes a new NpgsqlConnection object
+    public DbConnector(string connString)
+    {
+        _conn = new NpgsqlConnection(connString);
+    }
+
+    // Open connection to the database
+    public void Open()
+    {
+        _conn.Open();
+    }
+
+    // Close connection to the database
+    public void Close()
+    {
+        _conn.Close();
+    }
+
+    // Execute a query and return a NpgsqlDataReader object
+    public NpgsqlDataReader ExecuteQuery(string query, Dictionary<string, object> parameters)
+    {
+        NpgsqlCommand command = new NpgsqlCommand(query, _conn);
+        foreach (KeyValuePair<string, object> parameter in parameters)
+        {
+            command.Parameters.AddWithValue(parameter.Key, parameter.Value);
+        }
+        return command.ExecuteReader();
+    }
+
+    // Execute a non-query and return the number of rows affected
+    public int ExecuteNonQuery(string query, Dictionary<string, object> parameters)
+    {
+        NpgsqlCommand command = new NpgsqlCommand(query, _conn);
+        foreach (KeyValuePair<string, object> parameter in parameters)
+        {
+            command.Parameters.AddWithValue(parameter.Key, parameter.Value);
+        }
+        return command.ExecuteNonQuery();
+    }
+}
+
 class Program
 {
     static void Main(string[] args)
     {
-        string connString = "Server=ec2-34-197-91-131.compute-1.amazonaws.com;Port=5432;Database=ddab6aknfp5lq5;User Id=ltkkuxigptlbec;Password=f7d1b5f66e29dd77cb68cfb31740424d36a9127edd5c5fdfe49ea14e12ad23b1;SSL Mode=Require;Trust Server Certificate=true;";
+        // Open-closed principle is followed by using a connection string stored in an environment
+        // variable, allowing the code to be easily deployed to different environments without modifying
+        // the source code
+        string connString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING");
 
-        // Connect to a PostgreSQL database
-        NpgsqlConnection conn = new NpgsqlConnection(connString);
-        conn.Open();
+        // Connect to the database
+        DbConnector dbConnector = new DbConnector(connString);
+        dbConnector.Open();
 
         // Set the console text color to yellow
         Console.ForegroundColor = ConsoleColor.Yellow;
+
+        // Prompt the user for a phone number
+        Console.Write("\nEnter your phone number: ");
+        string phone = Console.ReadLine();
 
         // Display the main menu and prompt the user for a choice
         int choice = -1;
         while (choice != 0)
         {
+
             Console.WriteLine("\nWelcome to the Bartender's Handbook!");
             Console.WriteLine("Please choose an option:");
             Console.WriteLine("1. Search for a cocktail");
             Console.WriteLine("2. Add a cocktail");
             Console.WriteLine("3. Delete a cocktail");
+            Console.WriteLine("   ()      ()    /");
+            Console.WriteLine("  ()      ()  /  ");
+            Console.WriteLine("   ______________/___");
+            Console.WriteLine("   \\            /   /");
+            Console.WriteLine("    \\^^^^^^^^^^/^^^/");
+            Console.WriteLine("     \\     ___/   /");
+            Console.WriteLine("      \\   (   )  /");
+            Console.WriteLine("       \\  (___) /");
+            Console.WriteLine("        \\ /    /");
+            Console.WriteLine("         \\    /");
+            Console.WriteLine("          \\  /");
+            Console.WriteLine("           \\/");
+            Console.WriteLine("           ||");
+            Console.WriteLine("           ||");
+            Console.WriteLine("           ||");
+            Console.WriteLine("           ||");
+            Console.WriteLine("           ||");
+            Console.WriteLine("           /\\");
+            Console.WriteLine("          /;;\\");
+            Console.WriteLine("======================");
             Console.WriteLine("0. Exit");
 
             Console.Write("\nEnter your choice: ");
@@ -61,14 +136,15 @@ class Program
 
                         // Output the search results
                         while (dr.Read())
-                        {
-                            int id = int.Parse(dr["id"].ToString());
-                            string name = dr["name"].ToString();
-                            string[] ingredientsArr = (string[])dr["ingredients"];
-                            string ingredients = string.Join(", ", ingredientsArr);
-                            string flavorprofile = dr["flavorprofile"].ToString();
-                            Console.WriteLine("{0}\t{1}\t{2}\t{3}", id, name, ingredients, flavorprofile);
-                        }
+{
+    int id = int.Parse(dr["id"].ToString());
+    string name = dr["name"].ToString();
+    string[] ingredientsArr = (string[])dr["ingredients"];
+    string ingredients = string.Join(", ", ingredientsArr);
+    string flavorprofile = dr["flavorprofile"].ToString();
+    Console.WriteLine("{0,-5} {1,-20} {2,-40} {3}", id, name, ingredients, flavorprofile);
+}
+
 
 
 
@@ -93,6 +169,7 @@ class Program
                     string newIngredientsStr = Console.ReadLine();
                     string[] newIngredientsArr = newIngredientsStr.Split(',');
 
+         
                     // Prompt the user for the flavor profile of the new cocktail
                     Console.Write("Enter the flavor profile of the new cocktail: ");
                     string newFlavorProfile = Console.ReadLine();
@@ -120,39 +197,43 @@ class Program
 
                     break;
 
+
                 case 3:
-                    // Prompt the user for the ID of the cocktail to delete
-                    Console.Write("\nEnter the ID of the cocktail to delete: ");
-                    string deleteIdStr = Console.ReadLine();
+                    // Prompt the user for the name of the cocktail to be deleted
+                    Console.Write("\nEnter the name of the cocktail to be deleted: ");
+                    string deleteName = Console.ReadLine();
 
-                    if (!int.TryParse(deleteIdStr, out int deleteId))
+                    // Check if the cocktail exists in the database
+                    NpgsqlCommand checkCommand = new NpgsqlCommand("SELECT id FROM cocktails WHERE LOWER(name) = LOWER(@name)", conn);
+                    checkCommand.Parameters.AddWithValue("@name", deleteName.ToLower());
+
+                    object result = checkCommand.ExecuteScalar();
+                    if (result == null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("\nInvalid ID. Please enter a number.");
-                        Console.ResetColor();
-                        break;
-                    }
-
-                    // Define a DELETE statement with a WHERE clause to delete the specified cocktail
-                    NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM cocktails WHERE id = @id", conn);
-                    deleteCommand.Parameters.AddWithValue("@id", deleteId);
-
-                    // Execute the DELETE statement and obtain the number of rows affected
-                    rowsAffected = deleteCommand.ExecuteNonQuery();
-
-                    // Check if the operation was successful
-                    if (rowsAffected == 1)
-                    {
-                        Console.WriteLine("\nCocktail with ID {0} deleted successfully!", deleteId);
+                        // The cocktail does not exist in the database, display an error message
+                        Console.WriteLine("\nCocktail '{0}' does not exist.", deleteName);
                     }
                     else
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("\nFailed to delete cocktail with ID {0}.", deleteId);
-                        Console.ResetColor();
-                    }
+                        // The cocktail exists in the database, execute the DELETE statement
+                        NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM cocktails WHERE LOWER(name) = LOWER(@name)", conn);
+                        deleteCommand.Parameters.AddWithValue("@name", deleteName.ToLower());
+                        int numRowsDeleted = deleteCommand.ExecuteNonQuery();
 
+                        if (numRowsDeleted > 0)
+                        {
+                            Console.WriteLine("\nCocktail '{0}' has been deleted.", deleteName);
+                        }
+                        else
+                        {
+                            Console.WriteLine("\nFailed to delete cocktail '{0}'.", deleteName);
+                        }
+                    }
                     break;
+
+
+
+
 
                 case 0:
                     Console.WriteLine("\nGoodbye!");
@@ -164,7 +245,7 @@ class Program
             }
             try
             {
-                // your code here
+             
             }
             catch (Exception e)
             {
