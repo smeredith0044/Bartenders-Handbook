@@ -8,7 +8,6 @@ Features
 Technologies
 Contributing
 License
-Installation
 To install this application, please follow these steps:
 
 Clone this repository to your local machine
@@ -34,5 +33,3 @@ Heroku
 Contributing
 Contributions are welcome! Please feel free to submit a pull request with any changes or improvements you would like to make.
 
-License
-This project is licensed under the MIT License - see the LICENSE file for details.
