@@ -1,85 +1,43 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Text.RegularExpressions;
 using Npgsql;
-
-// Single responsibility principle is followed by separating out the code for database operations
-// into a separate class
-class DbConnector
-{
-    private NpgsqlConnection _conn;
-
-    // Constructor initializes a new NpgsqlConnection object
-    public DbConnector(string connString)
-    {
-        _conn = new NpgsqlConnection(connString);
-    }
-
-    // Open connection to the database
-    public void Open()
-    {
-        _conn.Open();
-    }
-
-    // Close connection to the database
-    public void Close()
-    {
-        _conn.Close();
-    }
-
-    // Execute a query and return a NpgsqlDataReader object
-    public NpgsqlDataReader ExecuteQuery(string query, Dictionary<string, object> parameters)
-    {
-        NpgsqlCommand command = new NpgsqlCommand(query, _conn);
-        foreach (KeyValuePair<string, object> parameter in parameters)
-        {
-            command.Parameters.AddWithValue(parameter.Key, parameter.Value);
-        }
-        return command.ExecuteReader();
-    }
-
-    // Execute a non-query and return the number of rows affected
-    public int ExecuteNonQuery(string query, Dictionary<string, object> parameters)
-    {
-        NpgsqlCommand command = new NpgsqlCommand(query, _conn);
-        foreach (KeyValuePair<string, object> parameter in parameters)
-        {
-            command.Parameters.AddWithValue(parameter.Key, parameter.Value);
-        }
-        return command.ExecuteNonQuery();
-    }
-}
+using System.IO;
 
 class Program
 {
     static void Main(string[] args)
     {
-        // Open-closed principle is followed by using a connection string stored in an environment
-        // variable, allowing the code to be easily deployed to different environments without modifying
-        // the source code
-        string connString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING");
+        // Single Responsibility Principle: The Program class is responsible for handling user input and database operations.
 
-        // Connect to the database
-        DbConnector dbConnector = new DbConnector(connString);
-        dbConnector.Open();
+        string connString = "Server=ec2-34-197-91-131.compute-1.amazonaws.com;Port=5432;Database=ddab6aknfp5lq5;User Id=ltkkuxigptlbec;Password=f7d1b5f66e29dd77cb68cfb31740424d36a9127edd5c5fdfe49ea14e12ad23b1;SSL Mode=Require;Trust Server Certificate=true;";
+
+        // Connect to a PostgreSQL database
+        NpgsqlConnection conn = new NpgsqlConnection(connString);
+        conn.Open();
 
         // Set the console text color to yellow
         Console.ForegroundColor = ConsoleColor.Yellow;
 
-        // Prompt the user for a phone number
-        Console.Write("\nEnter your phone number: ");
-        string phone = Console.ReadLine();
+        // Prompt the user for their phone number
+        Console.Write("Enter your phone number (format: xxx-xxx-xxxx): ");
+        string phoneNumber = Console.ReadLine();
+
+        // Validate the phone number using a regular expression
+        Regex phoneRegex = new Regex(@"^\d{3}-\d{3}-\d{4}$");
+        if (!phoneRegex.IsMatch(phoneNumber))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\nInvalid phone number format. Please enter a phone number in the format xxx-xxx-xxxx.");
+            Console.ResetColor();
+
+        }
 
         // Display the main menu and prompt the user for a choice
         int choice = -1;
         while (choice != 0)
         {
-
-            Console.WriteLine("\nWelcome to the Bartender's Handbook!");
-            Console.WriteLine("Please choose an option:");
-            Console.WriteLine("1. Search for a cocktail");
-            Console.WriteLine("2. Add a cocktail");
-            Console.WriteLine("3. Delete a cocktail");
             Console.WriteLine("   ()      ()    /");
             Console.WriteLine("  ()      ()  /  ");
             Console.WriteLine("   ______________/___");
@@ -100,6 +58,11 @@ class Program
             Console.WriteLine("           /\\");
             Console.WriteLine("          /;;\\");
             Console.WriteLine("======================");
+            Console.WriteLine("\nWelcome to the Bartender's Handbook!");
+            Console.WriteLine("Please choose an option:");
+            Console.WriteLine("1. Search for a cocktail");
+            Console.WriteLine("2. Add a cocktail");
+            Console.WriteLine("3. Delete a cocktail");
             Console.WriteLine("0. Exit");
 
             Console.Write("\nEnter your choice: ");
@@ -110,6 +73,7 @@ class Program
                 Console.WriteLine("Invalid choice. Please enter a number.");
                 continue;
             }
+            // Open/Closed Principle: The switch statement can be extended to support new features without modifying the existing code.
 
             switch (choice)
             {
@@ -136,17 +100,14 @@ class Program
 
                         // Output the search results
                         while (dr.Read())
-{
-    int id = int.Parse(dr["id"].ToString());
-    string name = dr["name"].ToString();
-    string[] ingredientsArr = (string[])dr["ingredients"];
-    string ingredients = string.Join(", ", ingredientsArr);
-    string flavorprofile = dr["flavorprofile"].ToString();
-    Console.WriteLine("{0,-5} {1,-20} {2,-40} {3}", id, name, ingredients, flavorprofile);
-}
-
-
-
+                        {
+                            int id = int.Parse(dr["id"].ToString());
+                            string name = dr["name"].ToString();
+                            string[] ingredientsArr = (string[])dr["ingredients"];
+                            string ingredients = string.Join(", ", ingredientsArr);
+                            string flavorprofile = dr["flavorprofile"].ToString();
+                            Console.WriteLine("{0,-5} {1,-20} {2,-40} {3}", id, name, ingredients, flavorprofile);
+                        }
 
                         Console.ResetColor();
                     }
@@ -169,7 +130,6 @@ class Program
                     string newIngredientsStr = Console.ReadLine();
                     string[] newIngredientsArr = newIngredientsStr.Split(',');
 
-         
                     // Prompt the user for the flavor profile of the new cocktail
                     Console.Write("Enter the flavor profile of the new cocktail: ");
                     string newFlavorProfile = Console.ReadLine();
@@ -197,67 +157,61 @@ class Program
 
                     break;
 
-
                 case 3:
-                    // Prompt the user for the name of the cocktail to be deleted
-                    Console.Write("\nEnter the name of the cocktail to be deleted: ");
+                    // Prompt the user for the name of the cocktail to delete
+                    Console.Write("\nEnter the name of the cocktail to delete: ");
                     string deleteName = Console.ReadLine();
 
-                    // Check if the cocktail exists in the database
-                    NpgsqlCommand checkCommand = new NpgsqlCommand("SELECT id FROM cocktails WHERE LOWER(name) = LOWER(@name)", conn);
-                    checkCommand.Parameters.AddWithValue("@name", deleteName.ToLower());
+                    // Define a DELETE statement with a WHERE clause to delete the specified cocktail by name
+                    NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM cocktails WHERE name = @name", conn);
+                    deleteCommand.Parameters.AddWithValue("@name", deleteName);
 
-                    object result = checkCommand.ExecuteScalar();
-                    if (result == null)
+                    // Execute the DELETE statement and obtain the number of rows affected
+                    rowsAffected = deleteCommand.ExecuteNonQuery();
+
+                    // Check if the operation was successful
+                    if (rowsAffected == 1)
                     {
-                        // The cocktail does not exist in the database, display an error message
-                        Console.WriteLine("\nCocktail '{0}' does not exist.", deleteName);
+                        Console.WriteLine("\nCocktail '{0}' deleted successfully!", deleteName);
                     }
                     else
                     {
-                        // The cocktail exists in the database, execute the DELETE statement
-                        NpgsqlCommand deleteCommand = new NpgsqlCommand("DELETE FROM cocktails WHERE LOWER(name) = LOWER(@name)", conn);
-                        deleteCommand.Parameters.AddWithValue("@name", deleteName.ToLower());
-                        int numRowsDeleted = deleteCommand.ExecuteNonQuery();
-
-                        if (numRowsDeleted > 0)
-                        {
-                            Console.WriteLine("\nCocktail '{0}' has been deleted.", deleteName);
-                        }
-                        else
-                        {
-                            Console.WriteLine("\nFailed to delete cocktail '{0}'.", deleteName);
-                        }
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("\nFailed to delete cocktail '{0}'.", deleteName);
+                        Console.ResetColor();
                     }
+
                     break;
 
-
-
-
-
                 case 0:
+                    // Exit the program
                     Console.WriteLine("\nGoodbye!");
                     break;
 
                 default:
-                    Console.WriteLine("\nInvalid choice. Please enter a number between 0 and 3.");
+                    // If the user enters an invalid option, display an error message
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\nInvalid option. Please choose a valid option from the menu.");
+                    Console.ResetColor();
                     break;
             }
-            try
-            {
-             
-            }
-            catch (Exception e)
-            {
-                string fileName = "error.txt";
-                string destPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug", fileName);
-                Console.WriteLine("Oops there were some errors, please see: " + destPath);
-                File.WriteAllText(destPath, e.ToString());
-            }
-
         }
 
         // Close the database connection
         conn.Close();
+
+        // Copy the "cocktail.txt" file to the "backup" folder and overwrite if it already exists
+        try
+        {
+            string sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cocktail.txt");
+            string destinationPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "backup", "cocktail.txt");
+            File.Copy(sourcePath, destinationPath, true);
+        }
+        catch (Exception ex)
+        {
+            // Write error details to the "whoops.txt" file in the "debug" folder
+            string debugPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug", "whoops.txt");
+            File.WriteAllText(debugPath, ex.ToString());
+        }
     }
 }
